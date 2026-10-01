@@ -1,7 +1,7 @@
-# iec104-parser — IEC 60870-5-104 parser for Zeek
+# iec104-parser - IEC 60870-5-104 parser for Zeek
 **NOTE: This parser was created using IEC_104 PCAPs found online. It has not been tested in a full production environment!!! Please test with PCAP data from your production environment in a lab environment before adding this script in production.**
 
-`iec_104.zeek` is a Zeek script that reads IEC 60870-5-104 (IEC-104) traffic on TCP/2404 and turns it into a structured, searchable `iec104.log`. It also raises Notices when someone writes to a protection setpoint — the quiet, high-impact
+`iec_104.zeek` is a Zeek script that reads IEC 60870-5-104 (IEC-104) traffic on TCP/2404 and turns it into a structured, searchable `iec104.log`. It also raises Notices when someone writes to a protection setpoint, a quiet and high-impact
 action that ordinary volume- or identity-based rules miss.
 
 IEC-104 is the TCP/IP telecontrol protocol that connects SCADA masters (HMIs) to substation RTUs/IEDs. Out of the box, Zeek has no IEC-104 analyzer, so this traffic is just opaque bytes on port 2404. This package makes every frame, and every information object, a first-class, queryable record.
@@ -10,8 +10,8 @@ IEC-104 is the TCP/IP telecontrol protocol that connects SCADA masters (HMIs) to
 
 ## What it does, in one paragraph
 
-For each packet on TCP/2404, the script walks every IEC-104 APDU in the payload, classifies it as an I-, S-, or U-frame, and — for I-frames — decodes the ASDU: its TypeID, Cause of Transmission, Common Address, and each information object's
-IOA and value. Every object becomes one `iec104.log` row with both machine fields (numbers) and human-readable descriptions (names). On top of logging, it evaluates `C_SE_NC_1` setpoint writes and fires Notices when a protection pickup is changed — and, specifically, when a 51P overcurrent pickup is dropped below a safe floor.
+For each packet on TCP/2404, the script walks every IEC-104 APDU in the payload, classifies it as an I-, S-, or U-frame, and for I-frames, decodes the ASDU: its TypeID, Cause of Transmission, Common Address, and each information object's
+IOA and value. Every object becomes one `iec104.log` row with both machine fields (numbers) and human-readable descriptions (names). On top of logging, it evaluates `C_SE_NC_1` setpoint writes and fires Notices when a protection pickup is changed - and, specifically, when a 51P overcurrent pickup is dropped below a safe floor.
 
 ---
 
@@ -44,9 +44,9 @@ IOA and value. Every object becomes one `iec104.log` row with both machine field
 - **Boolean points/commands** (single- and double-point, single/double/step commands): decoded to On`/`Off`/`Lower`/`Higher`/`Indeterminate` in `spi_desc`.
 - **CP56Time2a timestamps** (clock sync, test command, and every time-tagged monitoring type): decoded to `YYYY-MM-DD HH:MM:SS.mmm` in `clock_ts`, with the correct per-type offset to the time field.
 - **Interrogation**: the QOI (station vs group) is noted.
-- **Cause of Transmission**: mapped to short names — Spont (3), Act (6), ActCon (7), Term (10), Inrogen (20), and the Unknown* negative causes (44–47).
-- **IOA names**: each IOA is labeled from a lookup table (`ioa_names`) carrying the lab RTU point map — e.g. IOA 1 = Breaker Position, IOA 3 = 51P Overcurrent Trip, IOA 101 = Phase A Current, IOA 501 = 51P Phase Time Overcurrent Pickup.
-- **Raw value**: every decoded object also carries `value_hex`, the exact information-element bytes. This is ground truth even when no higher-level decode applies — and it is what exposes the numeric value of a setpoint write
+- **Cause of Transmission**: mapped to short names - Spont (3), Act (6), ActCon (7), Term (10), Inrogen (20), and the Unknown* negative causes (44–47).
+- **IOA names**: each IOA is labeled from a lookup table (`ioa_names`) carrying the lab RTU point map - e.g. IOA 1 = Breaker Position, IOA 3 = 51P Overcurrent Trip, IOA 101 = Phase A Current, IOA 501 = 51P Phase Time Overcurrent Pickup.
+- **Raw value**: every decoded object also carries `value_hex`, the exact information-element bytes. This is ground truth even when no higher-level decode applies - and it is what exposes the numeric value of a setpoint write
   (e.g. a short-float `200.0`).
 
 ---
@@ -79,8 +79,8 @@ IOA and value. Every object becomes one `iec104.log` row with both machine field
 ## Protection-setpoint Notices
 
 Beyond logging, the script watches for the one action that looks completely normal on the wire but changes how a relay behaves: a setpoint write. It raises:
-- **`IEC104::Protection_Setpoint_Write`** — any `C_SE_NC_1` (TypeID 50) activation write to a protection-setpoint IOA (501–504). On the modeled hardware these points are not remotely writable at all, so any such write is anomalous by construction, whatever the source.
-- **`IEC104::Protection_Setpoint_Below_Floor`** — a 51P overcurrent pickup (IOA 501) written *below* the target RTU's legitimate value. The script decodes the 4-byte IEEE-754 float and compares it against a per-RTU floor in  `pickup_floor_bits`. (For positive floats, comparing the raw 32-bit patterns as integers preserves numeric order, so no floating-point math is needed.)
+- **`IEC104::Protection_Setpoint_Write`** - any `C_SE_NC_1` (TypeID 50) activation write to a protection-setpoint IOA (501–504). On the modeled hardware these points are not remotely writable at all, so any such write is anomalous by construction, whatever the source.
+- **`IEC104::Protection_Setpoint_Below_Floor`** - a 51P overcurrent pickup (IOA 501) written *below* the target RTU's legitimate value. The script decodes the 4-byte IEEE-754 float and compares it against a per-RTU floor in  `pickup_floor_bits`. (For positive floats, comparing the raw 32-bit patterns as integers preserves numeric order, so no floating-point math is needed.)
 
 These Notices land in Zeek's `notice.log` (ingested as `zeek.notice` in Security Onion) and fire even when the write comes from the authorized HMI - which is exactly the case signature-by-source rules cannot catch.
 
@@ -89,23 +89,23 @@ These Notices land in Zeek's `notice.log` (ingested as `zeek.notice` in Security
 ## Configuration
 
 All of these are `&redef`-able from your own site policy:
-- **`IEC104::ioa_names`** — IOA → point-name table. Extend or replace it to match
+- **`IEC104::ioa_names`** - IOA → point-name table. Extend or replace it to match
   your point list.
-- **`IEC104::pickup_floor_bits`** — per-RTU legitimate 51P pickup floors, keyed
+- **`IEC104::pickup_floor_bits`** - per-RTU legitimate 51P pickup floors, keyed
   by RTU IP, as IEEE-754 bit patterns (600 A = `0x44160000`, 800 A =
   `0x44480000`, 1200 A = `0x44960000`). Edit for your addressing:
   ```zeek
   redef IEC104::pickup_floor_bits += { [10.0.0.5] = 0x44160000 };  # 600.0 A
   ```
-- **`IEC104::value_len_table`** — information-element length per TypeID; add
+- **`IEC104::value_len_table`** - information-element length per TypeID; add
   entries to teach the parser new types.
-- **`IEC104::log_iec104`** — set to `F` to disable logging.
+- **`IEC104::log_iec104`** - set to `F` to disable logging.
 
 ---
 
 ## Known limitations
 1. **No direction flag** - inferred from COT, as noted above.
-2. **Packet-level, not stream-reassembled** — an APDU split across two TCP segments is not reassembled. Tools that send one APDU per segment (and most lab traffic) are unaffected; some production links pack or split APDUs.
+2. **Packet-level, not stream-reassembled** - an APDU split across two TCP segments is not reassembled. Tools that send one APDU per segment (and most lab traffic) are unaffected; some production links pack or split APDUs.
 3. **Numeric measured/setpoint values** appear as `value_hex` (and, for IOA 501, are decoded inside the Notice logic); other floats are not expanded into a numeric field.
 4. **TypeID 104** is labeled per the lab convention; the IEC standard names TypeID 104 `C_TS_NA_1` (with `C_TS_TA_1` being 107). Cosmetic only.
 
