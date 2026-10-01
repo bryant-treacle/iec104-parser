@@ -1,0 +1,13 @@
+[package]
+description = IEC 60870-5-104 (IEC-104) APDU/ASDU parser for Zeek.
+    Writes one iec104.log row per frame or information object -- TypeID, Cause
+    of Transmission, Common Address, IOA (with lab point-map names), decoded
+    CP56Time2a timestamps, and a raw value_hex for every object. Also raises
+    Notices on any C_SE_NC_1 write to a protection setpoint (IOA 501-504) and,
+    specifically, when a 51P overcurrent pickup (IOA 501) is written below the
+    target RTU's legitimate floor. Lab/course edition.
+script_dir = scripts
+tags = zeek scripting, ics, scada, iec104, iec-60870-5-104, protocol analyzer
+test_command = zeek -b scripts/iec_104.zeek
+depends =
+  zeek >=4.0.0
