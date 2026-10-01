@@ -1,4 +1,4 @@
-# iec104-parser - IEC 60870-5-104 parser for Zeek
+## IEC 60870-5-104 parser for Zeek
 **NOTE: This parser was created using IEC_104 PCAPs found online. It has not been tested in a full production environment!!! Please test with PCAP data from your production environment in a lab environment before adding this script in production.**
 
 `iec_104.zeek` is a Zeek script that reads IEC 60870-5-104 (IEC-104) traffic on TCP/2404 and turns it into a structured, searchable `iec104.log`. It also raises Notices when someone writes to a protection setpoint, a quiet and high-impact
